@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 
+from app.database.repository import FileRepository
+from app.watcher.event_processor import EventProcessor
+
 app = FastAPI()
+
+repo = FileRepository()
+processor = EventProcessor(repo=repo)
 
 
 @app.get("/")
