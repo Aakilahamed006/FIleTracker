@@ -66,16 +66,29 @@ class FileRepository:
             event=self.helpers.get_file_by_path(location)
 
             file_id=self.helpers.resolve_file_id(file_id, location)
+
             if file_id is not None:
                 self.helpers.set_file_operated_true_in_file_initiation(file_id)
-            if event is None or not event.file_operation == "deleted":
+            if event is None  :     #or  event.file_operation == "deleted":
                 event=self.helpers.get_latest_file_by_path_life_cycle(location)
                 file_id=event.file_id
 
-            events=self.helpers.get_files_by_parent_path_file_life_cycle(location)
-            for event in events:
+            life_cycle_events=self.helpers.get_files_by_parent_path_file_life_cycle(location)
+
+            if life_cycle_events is not None:
+              for event in life_cycle_events:
                 event.current_location=self.helpers.update_the_child_path(event.current_location, location,dest)
-                self.helpers.save_event_record_in_file_life_cycle(event.file_id, event.operation,event.current_location, event.timestamp)
+                self.helpers.save_event_record_in_file_life_cycle(event.file_id, "Path modified due renaming of parent file",event.current_location,event.current_name, event.timestamp)
+
+            if not life_cycle_events:
+              file_initiation_events = self.helpers.get_files_by_parent_path(location)
+              if file_initiation_events is not None:
+                for event in file_initiation_events:
+                 self.helpers.set_file_operated_true_in_file_initiation(event.id)
+                 event.file_path=self.helpers.update_the_child_path(event.file_path, location,dest)
+                 print ("event file_path:"+event.file_path)
+                 print ("event file_id:",event.id)
+                 self.helpers.save_event_record_in_file_life_cycle(event.id, "Path modified due renaming of parent file",event.file_path,event.file_name, event.timestamp)
 
             return self.helpers.save_event_record_in_file_life_cycle(file_id, operation, dest, name, timestamp)
 

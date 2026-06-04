@@ -144,3 +144,4 @@ class FileRepositoryHelpers:
             return current_path.replace(old_path, new_path, 1)
 
         return current_path
+
