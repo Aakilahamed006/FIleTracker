@@ -49,17 +49,20 @@ class FileRepository:
 
     def add_event(self, file_id, operation, location, name, timestamp, dest=None):
         if operation == "deleted":
-            file_id = self.helpers.resolve_file_id(file_id, location)
-            if file_id is None:
-                return None
+            event = self.helpers.get_file_by_path(location)
+            print("Entering deleted event")
+            if event is not None:
+                file_id=event.id
 
-            if not self.helpers.cascade_delete_initiation(location):
-                return None
+            if file_id is not None:
+                self.helpers.set_file_operated_true_in_file_initiation(file_id)
 
-            if not self.helpers.cascade_delete_lifecycle(location):
-                return None
+            if event is None  :     #or  event.file_operation == "deleted":
+                event=self.helpers.get_latest_file_by_path_life_cycle(location)
+                file_id=event.file_id
 
             return self.helpers.save_event_record_in_file_life_cycle(file_id, operation, location, name, timestamp)
+
 
         if operation == "renamed" :
 
@@ -91,6 +94,14 @@ class FileRepository:
                  self.helpers.save_event_record_in_file_life_cycle(event.id, "Path modified due renaming of parent file",event.file_path,event.file_name, event.timestamp)
 
             return self.helpers.save_event_record_in_file_life_cycle(file_id, operation, dest, name, timestamp)
+
+        if operation =="downloaded":
+            try:
+                file_extension = location.suffix.lstrip(".")
+            except Exception:
+                file_extension = ""
+            self.helpers.save_event_record_in_file_initiation(location,name,timestamp,"downloaded",file_extension)
+
 
         print("methods not implemented")
         return None

@@ -90,6 +90,27 @@ class FileRepositoryHelpers:
             print(f"❌ DB error while saving event: {e}")
             return None
 
+    def save_event_record_in_file_initiation(self, location, name, timestamp,file_operation,file_extension):
+        record = FileInitiation(
+            file_path=location,
+            file_name=name,
+            is_operated=False,
+            file_operation=file_operation,
+            file_extension=file_extension if file_extension else "",
+            timestamp=timestamp
+
+        )
+        try:
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+
+            print("Downloaded records saved successfully")
+        except Exception as e:
+            self.db.rollback()
+            print("Error while saving event: {e}")
+            return e
+
     # -----------------------------------
     # QUERIES
     # -----------------------------------

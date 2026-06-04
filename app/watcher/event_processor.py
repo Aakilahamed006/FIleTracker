@@ -285,9 +285,11 @@ class EventProcessor:
 
                 downloaded_files.add(path)
                 print(f"{event['time']} DOWNLOADED: {path}")
+                name=Path(path).name
                 self.safe_add_event(
                     "downloaded",
                     path,
+                    name,
                     event["time"]
                 )
                 continue
