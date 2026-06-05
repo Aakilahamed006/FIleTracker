@@ -30,41 +30,7 @@ class FileRepositoryHelpers:
 
         return file_record.id
 
-    def cascade_delete_initiation(self, location):
-        children = self.get_files_by_parent_path(location)
 
-        for child in children:
-            child.file_operation = "deleted"
-            print(f"🗂 Cascade deleted child: {child.file_path}")
-
-        if children:
-            try:
-                self.db.commit()
-                print(f"✔ Cascade delete committed for {len(children)} children.")
-            except Exception as e:
-                self.db.rollback()
-                print(f"❌ DB error during cascade delete: {e}")
-                return False
-
-        return True
-
-    def cascade_delete_lifecycle(self, location):
-        children_file_life_cycle = self.get_files_by_parent_path_file_life_cycle(location)
-
-        for childs in children_file_life_cycle:
-            childs.file_operation = "deleted"
-            print(f"🗂 Cascade deleted child: {childs.file_path}")
-
-        if children_file_life_cycle:
-            try:
-                self.db.commit()
-                print(f"✔ Cascade delete committed for {len(children_file_life_cycle)} children.")
-            except Exception as e:
-                self.db.rollback()
-                print(f"❌ DB error during cascade delete: {e}")
-                return False
-
-        return True
 
     def save_event_record_in_file_life_cycle(self, file_id, operation, location, name, timestamp, ):
         record = FileLifeCycle(
@@ -74,9 +40,6 @@ class FileRepositoryHelpers:
             current_name=name,
             timestamp=timestamp
         )
-
-
-
         try:
             self.db.add(record)
             self.db.commit()
@@ -128,15 +91,42 @@ class FileRepositoryHelpers:
 
     def get_files_by_parent_path(self, parent_path):
         parent_path = parent_path.rstrip("\\") + "\\"
-        return self.db.query(FileInitiation).filter(
+
+        records = self.db.query(FileInitiation).filter(
             FileInitiation.file_path.startswith(parent_path)
         ).all()
 
+        latest_records = {}
+
+        for record in records:
+            if (
+                    record.id not in latest_records
+                    or record.timestamp > latest_records[record.id].timestamp
+            ):
+                latest_records[record.id] = record
+
+        return list(latest_records.values())
+
+
     def get_files_by_parent_path_file_life_cycle(self, parent_path):
         parent_path = parent_path.rstrip("\\") + "\\"
-        return self.db.query(FileLifeCycle).filter(
+
+        records = self.db.query(FileLifeCycle).filter(
             FileLifeCycle.current_location.startswith(parent_path)
         ).all()
+
+        latest_records = {}
+
+        for record in records:
+            if (
+                    record.file_id not in latest_records
+                    or record.timestamp > latest_records[record.file_id].timestamp
+            ):
+                latest_records[record.file_id] = record
+
+        return list(latest_records.values())
+
+
 
     def close(self):
         self.db.close()
@@ -166,3 +156,8 @@ class FileRepositoryHelpers:
 
         return current_path
 
+    def set_file_operated_true_in_file_initiation_by_file_id(self, file_id):
+        self.db.query(FileInitiation).filter(
+            FileInitiation.id == file_id
+        ).update({"is_operated": True})
+        self.db.commit()

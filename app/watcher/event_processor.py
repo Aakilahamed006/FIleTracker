@@ -156,6 +156,7 @@ class EventProcessor:
                 # FILE MOVE (strict match)
                 # -------------------------------
                 if not deleted_is_dir:
+
                     if deleted_name == created_name:
                         print(
                             f"{event1['time']} MOVED FILE:\n"
@@ -166,6 +167,7 @@ class EventProcessor:
                         self.safe_add_event(
                             "moved",
                             deleted_path,
+                            deleted_name,
                             event1["time"],
                             created_path
                         )
@@ -188,6 +190,7 @@ class EventProcessor:
                     self.safe_add_event(
                         "moved",
                         deleted_path,
+                        deleted_name,
                         event1["time"],
                         created_path
                     )
