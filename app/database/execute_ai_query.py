@@ -1,71 +1,78 @@
-from sqlalchemy import text
-from app.database.db import SessionLocal
+from datetime import datetime, timedelta
+
+from app.database.models import FileInitiation, FileLifeCycle
 
 
-def execute_ai_query(sql_query: str) -> dict | list:
+def get_files_by_date_and_operation(
+        self,
+        start_date: str,
+        end_date: str,
+        event_type: str
+) -> list:
+    """
+    Queries the database for files initialized/operated within a specific date range
+    and returns their latest lifecycle state.
 
-    db = SessionLocal()
-
-    try:
-        sql = sql_query.strip()
-        query_type = sql.split()[0].lower()
-
-        forbidden = ["delete", "update", "insert", "create", "drop", "alter"]
-
-        if query_type in forbidden:
-            return {"error": f"{query_type.upper()} operations are not allowed."}
-
-        if any(word in sql.lower() for word in forbidden):
-            return {"error": "Forbidden SQL operation detected."}
-
-        # -------------------------
-        # FIX IS HERE
-        # -------------------------
-        result = db.execute(text(sql))
-
-        # SELECT results
-        if result.returns_rows:
-            return [dict(row._mapping) for row in result.fetchall()]
-
-        db.commit()
-        return {"message": "Query executed successfully"}
-
-    except Exception as e:
-        db.rollback()
-        return {"error": str(e)}
-
-    finally:
-        db.close()
-
-if __name__ == "__main__":
-
-    sql_query = """
-    WITH downloaded_today AS (
-        SELECT DISTINCT flc.file_id
-        FROM file_initiation_table fit
-        INNER JOIN file_life_cycle flc 
-            ON fit.id = flc.file_id
-        WHERE fit.is_operated = true
-          AND fit.file_operation = "downloaded"
-          AND DATE(flc.timestamp) = CURRENT_DATE
-    ),
-    latest_state AS (
-        SELECT flc.file_id, MAX(flc.timestamp) AS max_ts
-        FROM file_life_cycle flc
-        WHERE flc.file_id IN (SELECT file_id FROM downloaded_today)
-        GROUP BY flc.file_id
-    )
-    SELECT 
-        flc.file_id,
-        flc.current_location,
-        flc.current_name,
-        flc.file_operation,
-        flc.timestamp
-    FROM file_life_cycle flc
-    JOIN latest_state ls 
-        ON flc.file_id = ls.file_id 
-       AND flc.timestamp = ls.max_ts;
+    Arguments:
+    - start_date: 'YYYY-MM-DD'
+    - end_date: 'YYYY-MM-DD'
+    - event_type: str
     """
 
-    final_result = execute_ai_query(sql_query)
-    print(final_result)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+
+    events = self.db.query(FileInitiation).filter(
+        FileInitiation.file_operation == event_type,
+        FileInitiation.timestamp >= start,
+        FileInitiation.timestamp < end
+    ).all()
+
+    inited_list = []
+    temp_events = {}
+
+    for event in events:
+
+        # File has never been operated on
+        if not event.is_operated:
+            inited_list.append(event)
+
+        # File has lifecycle events
+        else:
+            file_lifecycle_events = self.db.query(FileLifeCycle).filter(
+                FileLifeCycle.file_id == event.id
+            ).all()
+
+            for lifecycle in file_lifecycle_events:
+
+                # Keep only the latest lifecycle event per file
+                if (
+                    lifecycle.file_id not in temp_events
+                    or lifecycle.timestamp >
+                    temp_events[lifecycle.file_id].timestamp
+                ):
+                    temp_events[lifecycle.file_id] = lifecycle
+
+    result = []
+
+    # Files that were never operated on
+    for event in inited_list:
+        result.append({
+            "file_id": event.id,
+            "file_name": event.file_name,
+            "location": event.file_path,
+            "operation": event.file_operation,
+            "timestamp": event.timestamp
+        })
+
+    # Latest lifecycle state of operated files
+    for lifecycle in temp_events.values():
+        result.append({
+            "file_id": lifecycle.file_id,
+            "file_name": lifecycle.current_name,
+            "location": lifecycle.current_location,
+            "operation": lifecycle.file_operation,
+            "timestamp": lifecycle.timestamp
+        })
+
+    return result
