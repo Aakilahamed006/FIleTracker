@@ -2,7 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from app.services.schema_service import get_database_schema
-from app.database.execute_ai_query import execute_ai_query
+from app.database.mcp_helper_funtions import execute_ai_query
 
 load_dotenv()
 
