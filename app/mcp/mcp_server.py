@@ -1,7 +1,20 @@
+
+
+
+
+
+
+
+
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from fastmcp import FastMCP
 from sqlalchemy import result_tuple
-
 from app.main import app
+# ... rest of your code
 
 
 # Create MCP server from FastAPI app

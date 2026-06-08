@@ -1,0 +1,7 @@
+fastapi
+fastmcp
+sqlalchemy
+python-dotenv
+requests
+watchdog
+uvicorn
