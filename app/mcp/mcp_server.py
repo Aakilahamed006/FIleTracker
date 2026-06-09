@@ -1,16 +1,11 @@
 
-
-
-
-
-
-
-
-
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from app.database.mcp_helper_funtions import get_all_files_with_latest_state
 from fastmcp import FastMCP
 from sqlalchemy import result_tuple
 from app.main import app
@@ -140,6 +135,26 @@ def get_files_by_date_and_operation_for_rename_delete_move(
 
     return result
 
+@mcp.tool()
+def get_all_files_at_there_latest_state() -> str:
+    rows = get_all_files_with_latest_state()
+
+    if not rows:
+        return "No files found in the database."
+
+    lines = []
+
+    for row in rows:
+        lines.append(
+            f"file_id: {row['file_id']}\n"
+            f"current_file_name: {row['current_file_name']}\n"
+            f"current_location: {row['current_location']}\n"
+            f"latest_operation: {row['latest_operation']}\n"
+            f"timestamp: {row['timestamp']}\n"
+            f"-----------------------------------"
+        )
+
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     mcp.run()

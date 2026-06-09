@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Any
 
+from google.protobuf import timestamp
+
 from app.database.db import SessionLocal
 from app.database.models import FileInitiation, FileLifeCycle
 
@@ -150,15 +152,67 @@ def get_files_by_date_and_operation_for_rename_delete_move(
         db.close()
 
 
+def get_all_files_with_latest_state():
+    db = SessionLocal()
 
+    try:
+        # Get latest lifecycle events first
+        events = (
+            db.query(FileLifeCycle)
+            .order_by(FileLifeCycle.timestamp.desc())
+            .all()
+        )
+
+        # Get files that have never been operated on
+        initiated_files = (
+            db.query(FileInitiation)
+            .filter(FileInitiation.is_operated == False)
+            .all()
+        )
+
+        latest_events = {}
+
+        # Keep only the newest event per file_id
+        for event in events:
+            if event.file_id not in latest_events:
+                latest_events[event.file_id] = event
+
+        result = []
+
+        # Add latest lifecycle states
+        for event in latest_events.values():
+            result.append({
+                "file_id": event.file_id,
+                "current_file_name": event.current_name,
+                "current_location": event.current_location,
+                "latest_operation": event.file_operation,
+                "timestamp": event.timestamp
+            })
+
+        # Add files that have no lifecycle events yet
+        for file in initiated_files:
+            result.append({
+                "file_id": file.id,
+                "current_file_name": file.file_name,
+                "current_location": file.file_path,
+                "latest_operation": file.file_operation,
+                "timestamp": file.timestamp
+            })
+
+        # Optional: sort everything by timestamp descending
+        result.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return result
+
+    except Exception as ex:
+        return f"Error: {str(ex)}"
+
+    finally:
+        db.close()
 
 
 
 if __name__ == "__main__":
-    result = get_files_by_date_and_operation_for_rename_delete_move(
-        start_date="2026-06-05",
-        end_date="2026-06-05",
-        event_type="renamed"
-    )
+    result = get_all_files_with_latest_state()
 
     print(result)
